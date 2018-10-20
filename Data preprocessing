@@ -1,0 +1,221 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Jul 28 17:33:25 2018
+
+@author: ggc
+"""
+
+import numpy as np  
+import xlrd
+import pandas as pd
+import os
+import os.path  
+import datetime
+
+rootdir_all = 'D:/xx/raw_data_hour'
+list_name_all = os.listdir(rootdir_all)
+
+for i in range(0,len(list_name_all)):
+    data_path = 'D:/xx/raw_data_hour/'+list_name_all[i] 
+    data_all = xlrd.open_workbook(data_path)
+    sheets_all = data_all.sheet_names()
+    date = []
+    for j in range(len(sheets_all)):
+        original_data = pd.read_excel(data_path,sheet_name=sheets_all[j],index=False,encoding='utf-8')
+        start = str(original_data['Time'][0])
+        end = str(original_data['Time'][len(original_data)-1])
+        begin_time =  datetime.datetime.strptime(start,'%Y-%m-%d %H:%M:%S')
+        end_time =  datetime.datetime.strptime(end,'%Y-%m-%d %H:%M:%S')
+        date_delta = datetime.timedelta(hours=1)
+        data_workingday_time = []
+        data_workingday_demand = []
+        data_weekends_time = []
+        data_weekends_demand = []
+        while begin_time <= end_time:
+            date.append(begin_time)
+            begin_time+=date_delta
+        New_data = pd.DataFrame({'Time':date[:],'water demand':np.linspace(1,1,len(date))})
+        dt = 3*np.median(original_data['water demand'][:])     
+        for k1 in range(len(New_data)):
+            date1 = New_data['Time'][k1]
+            index1 = np.where(date1==original_data['Time'][:])
+            a = index1[0]
+            L = len(a) 
+            if L == 0:
+                New_data['water demand'][k1] = (New_data['water demand'][k1-24]+New_data['water demand'][k1-24*7])/2
+                if New_data['water demand'][k1] <=0 or New_data['water demand'][k1]>dt:
+                    New_data['water demand'][k1] = (New_data['water demand'][k1-24]+New_data['water demand'][k1-24*7])/2
+                if 0<=New_data['Time'][k1].weekday()<=4:
+                    data_workingday_time.append(New_data['Time'][k1])
+                    data_workingday_demand.append(New_data['water demand'][k1]) 
+                else:
+                    data_weekends_time.append(New_data['Time'][k1])
+                    data_weekends_demand.append(New_data['water demand'][k1])                     
+            else:
+                b = a[0]
+                New_data['water demand'][k1] = original_data['water demand'][b]
+                if New_data['water demand'][k1] <=0 or New_data['water demand'][k1]>dt:
+                    New_data['water demand'][k1] = (New_data['water demand'][k1-24]+New_data['water demand'][k1-24*7])/2
+                if 0<=New_data['Time'][k1].weekday()<=4:
+                    data_workingday_time.append(New_data['Time'][k1])
+                    data_workingday_demand.append(New_data['water demand'][k1]) 
+                else:
+                    data_weekends_time.append(New_data['Time'][k1])
+                    data_weekends_demand.append(New_data['water demand'][k1]) 
+            print(i,k1)
+        data_workingdays = pd.DataFrame({'Time':data_workingday_time[:],'water demand':data_workingday_demand[:]})
+        data_weekends = pd.DataFrame({'Time':data_weekends_time[:],'water demand':data_weekends_demand[:]})
+        data_workingdays.to_excel('D:/xx/Results_hour/'+list_name_all[i]+'_workingdays.xlsx', index = False) 
+        data_weekends.to_excel('D:/xx/Results_hour/'+list_name_all[i]+'_weekends.xlsx', index = False) 
+        New_data.to_excel('D:/xx/Results_hour/'+list_name_all[i]+'_total_datasets.xlsx', index = False) 
+        
+    
+'''-------------------------------------------数据提取------------------------------------------'''
+import numpy as np  
+import xlrd
+import pandas as pd
+import os
+import os.path  
+import datetime
+''' 大雪0，小雪1，阵雨2，大雨,3,中雨4，小雨5，阴6，多云7，晴8'''
+def weather(inputs):
+    a1 = inputs
+    if a1 == '大雪':
+        b1=0
+    elif a1 == '小雪':
+        b1=1
+    elif a1 == '阵雨':
+        b1=2    
+    elif a1 == '大雨':
+        b1=3
+    elif a1 == '中雨':
+        b1=4
+    elif a1 == '小雨':
+        b1=5
+    elif a1 == '阴':
+        b1=6
+    elif a1 == '多云':
+        b1=7
+    elif a1 == '晴':
+        b1=8   
+    return b1
+        
+def wind(inputs):
+    a2 = inputs
+    if a2 == '1级':
+        b2=1
+    elif a2 == '2级':
+        b2=2
+    elif a2 == '3级':
+        b2=3    
+    elif a2 == '4级':
+        b2=4
+    elif a2 == '5级':
+        b2=5
+    elif a2 == '6级':
+        b2=6
+    elif a2 == '7级':
+        b2=7  
+    return b2
+
+x1= 'D:/xx/Results_hour/xx-DN1200hour.xlsx_weekends.xlsx'   
+x2= 'D:/xx/Results_hour/xx-DN1200hour.xlsx_workingdays.xlsx'    
+x3= 'D:/xx/Results_hour/T.xlsx'  
+data1 = pd.read_excel(x1)
+data2 = pd.read_excel(x2)
+data3 = pd.read_excel(x3)
+length1 = len(data1)
+length2 = len(data2)
+New_data1 = pd.DataFrame({'时间':np.linspace(1,1,length1),'水量':np.linspace(1,1,length1),
+                          '最高气温':np.linspace(1,1,length1),'最低气温':np.linspace(1,1,length1),
+                          '天气':np.linspace(1,1,length1),'风力':np.linspace(1,1,length1)})
+New_data2 = pd.DataFrame({'时间':np.linspace(1,1,length2 ),'水量':np.linspace(1,1,length2 ),
+                          '最高气温':np.linspace(1,1,length2 ),'最低气温':np.linspace(1,1,length2 ),
+                          '天气':np.linspace(1,1,length2 ),'风力':np.linspace(1,1,length2 )})
+New_data1['时间'][:] = data1['Time'][:]
+New_data2['时间'][:] = data2['Time'][:] 
+New_data1['水量'][:] = data1['water demand'][:]
+New_data2['水量'][:] = data2['water demand'][:] 
+
+for i in range(len(data3)):
+    input1 = data3['天气'][i]
+    input2 = data3['风力'][i]
+    a11 = weather(input1)
+    a22 = wind(input2)
+    data3['天气'][i] = a11
+    data3['风力'][i] = a22
+    
+i=0
+date1 = New_data1['时间'][24*i]
+index1 = np.where(date1==data3)
+a = index1[0]
+b=a[0]
+for j in range(24):
+    New_data1['最高气温'][j+24*i] = data3['最高气温'][b]
+    New_data1['最低气温'][j+24*i] = data3['最低气温'][b]
+    New_data1['天气'][j+24*i] = data3['天气'][b]
+    New_data1['风力'][j+24*i] = data3['风力'][b]
+for i in range(1,int(length1/24)):
+    date1 = New_data1['时间'][24*i]
+    index1 = np.where(date1==data3)
+    a = index1[0]
+    L=len(a)
+    if L == 0:
+        for j in range(24):
+            New_data1['最高气温'][j+24*i] = New_data1['最高气温'][j+24*i-1]
+            New_data1['最低气温'][j+24*i] = New_data1['最低气温'][j+24*i-1]
+            New_data1['天气'][j+24*i] = New_data1['天气'][j+24*i-1]
+            New_data1['风力'][j+24*i] = New_data1['风力'][j+24*i-1]
+    else:
+        b=a[0]
+        for j in range(24):
+            New_data1['最高气温'][j+24*i] = data3['最高气温'][b]
+            New_data1['最低气温'][j+24*i] = data3['最低气温'][b]
+            New_data1['天气'][j+24*i] = data3['天气'][b]
+            New_data1['风力'][j+24*i] = data3['风力'][b]
+    print(i)
+New_data1.to_excel('D:/xx/Final_results/xx-weekends-hour.xlsx', index = False)   
+     
+i=0
+date2 = New_data2['时间'][24*i]
+index2 = np.where(date2==data3)
+a = index2[0]
+b=a[0]
+for j in range(24):
+    New_data2['最高气温'][j+24*i] = data3['最高气温'][b]
+    New_data2['最低气温'][j+24*i] = data3['最低气温'][b]
+    New_data2['天气'][j+24*i] = data3['天气'][b]
+    New_data2['风力'][j+24*i] = data3['风力'][b]
+
+for i in range(1,int(length2/24)):
+    date2 = New_data2['时间'][24*i]
+    index2 = np.where(date2==data3)
+    a = index2[0]
+    L=len(a)
+    if L == 0:
+        for j in range(24):
+            New_data2['最高气温'][j+24*i] = New_data2['最高气温'][j+24*i-1]
+            New_data2['最低气温'][j+24*i] = New_data2['最低气温'][j+24*i-1]
+            New_data2['天气'][j+24*i] = New_data2['天气'][j+24*i-1]
+            New_data2['风力'][j+24*i] = New_data2['风力'][j+24*i-1]
+    else:
+        b=a[0]
+        for j in range(24):
+            New_data2['最高气温'][j+24*i] = data3['最高气温'][b]
+            New_data2['最低气温'][j+24*i] = data3['最低气温'][b]
+            New_data2['天气'][j+24*i] = data3['天气'][b]
+            New_data2['风力'][j+24*i] = data3['风力'][b]
+    print(i)
+New_data2.to_excel('D:/xx/Final_results/xx-workingdays-hour.xlsx', index = False)   
+
+'''-------------------------------------------数据二次处理------------------------------------------'''
+
+x1= 'D:/xx/Final_results/xx-weekends-hour.xlsx'    
+data = pd.read_excel(x1)
+length = len(data)
+for i in range(length):
+    a = data['水量'][i]
+    if a<=300 or a>=5000:
+       data['水量'][i] = (data['水量'][i-24]+data['水量'][i-24*7])/2
+       print(i)
+data.to_excel(x1, index = False) 
