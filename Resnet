@@ -1,0 +1,191 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Dec  7 10:16:44 2017
+
+@author: ggc
+"""
+
+import os
+os.environ['KERAS_BACKEND'] = 'tensorflow'
+import numpy as np
+import tensorflow as tf
+import random as rn
+os.environ['PYTHONHASHSEED'] = '0'
+np.random.seed(1337)
+rn.seed(1337)
+session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
+from keras import backend as K
+sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
+K.set_session(sess)
+import matplotlib.pyplot as plt
+from keras.models import Model
+from keras.layers import GRU,Dense,Conv2D,Conv1D,MaxPooling2D,Flatten,concatenate,Lambda,Input,merge,Dropout,BatchNormalization,Activation,SeparableConv2D,add
+from keras.optimizers import Adam
+import pandas as pd
+from keras.callbacks import EarlyStopping
+
+TIME_STEPS = 6
+timesteps = 24
+BATCH_SIZE = 50
+INPUT_SIZE =1
+OUTPUT_SIZE = 24
+LR = 0.0008
+train_samples=40000
+test_samples=4000
+VALIDATION_SPLIT = 0.9
+days = 7
+nb_validation_samples = int(VALIDATION_SPLIT * train_samples)
+
+from keras import backend as K
+def zeropad(x):
+    y = K.zeros_like(x)
+    return K.concatenate([x, y], axis=1)
+
+def zeropad_output_shape(input_shape):
+    shape = list(input_shape)
+    assert len(shape) == 4
+    shape[1] *= 2
+    return tuple(shape)   
+
+def resnet_same_depth(inputs,n_filters,a,b,m,n,BN=False):
+    if BN==False:
+        inputs = inputs
+        x =  Conv2D(n_filters, kernel_size=(a,b), strides=(m,n),data_format='channels_first', padding ='same', 
+                   activation='relu')(inputs)
+        y = Conv2D(n_filters, kernel_size=(a,b), strides=(m,n),data_format='channels_first', padding ='same', 
+                   activation='relu')(x)
+        z = merge([inputs,y], mode = 'sum')
+    else:
+        inputs = inputs
+        x = Conv2D(n_filters, kernel_size=(a,b), strides=(m,n),data_format='channels_first', padding ='same', 
+                   activation='relu')(inputs)
+        y = BatchNormalization()(x)
+        y = Conv2D(n_filters, kernel_size=(a,b), strides=(m,n),data_format='channels_first', padding ='same', 
+                   activation='relu')(y)
+        y = BatchNormalization()(y)
+        z = merge([inputs,y], mode = 'sum')
+    return z
+
+def resnet_different_depth(inputs,n_filters,a,b,m,n,BN=False):
+    if BN==False:
+        inputs = Lambda(zeropad)(inputs)
+        x =  Conv2D(n_filters, kernel_size=(a,b), strides=(m,n),data_format='channels_first', padding ='same', 
+                   activation='relu')(inputs)
+        y = Conv2D(n_filters, kernel_size=(a,b), strides=(m,n),data_format='channels_first', padding ='same', 
+                   activation='relu')(x)
+        z = merge([inputs,y], mode = 'sum')
+    else:
+        inputs = Lambda(zeropad)(inputs)
+        x = Conv2D(n_filters, kernel_size=(a,b), strides=(m,n),data_format='channels_first', padding ='same', 
+                   activation='relu')(inputs)
+        y = BatchNormalization()(x)
+        y = Conv2D(n_filters, kernel_size=(a,b), strides=(m,n),data_format='channels_first', padding ='same', 
+                   activation='relu')(y)
+        y = BatchNormalization()(y)
+        z = merge([inputs,y], mode = 'sum')
+    return z 
+
+def resnet_nb(inputs,n1):
+    inputs = inputs
+    x1 = resnet_different_depth(inputs,14,2,2,1,1,BN=True)
+    for i in range(n1):
+        x = resnet_same_depth(x1,14,2,2,1,1,BN=True)
+        x1 = x
+#    x2 = resnet_different_depth(x1,28,2,2,1,1,BN=True)
+#    for i in range(n2):
+#        x = resnet_same_depth(x2,28,2,2,1,1,BN=True)
+#        x2 = x
+#    x3 = resnet_different_depth(x2,48,3,3,1,1,BN=True)
+#    for i in range(n3):
+#        x = resnet_same_depth(x3,48,3,3,1,1,BN=True)
+#        x3 = x
+    return x2
+
+def modelbuilt(k):       
+    conv1_inputs = Input(shape=(1,days,24),name='conv1_input')
+    conv1_out1 = Conv2D(7, kernel_size=(2,2), strides=(1,2),data_format='channels_first', padding ='same', 
+                       activation='relu')(conv1_inputs)
+    pool1 = MaxPooling2D(pool_size=(2,2), strides=(2,2), padding='same',data_format='channels_first')(conv1_out1)
+    resnet = resnet_nb(pool1,2*k)
+    pool2 = MaxPooling2D(pool_size=(2,2), strides=(2,2), padding='same',data_format='channels_first')(resnet)
+    conv1_out2 = Flatten()(pool2)
+    dense = Dense(128, activation='relu')(conv1_out2)
+    dense = BatchNormalization()(dense)
+    Output = Dense(24, activation='linear')(dense)
+    model = Model(input = conv1_inputs, output = Output)
+    
+    adam = Adam(LR)
+    model.compile(optimizer=adam,loss='mse') 
+    early_stopping = EarlyStopping(monitor='val_loss', patience=5)
+    model.fit(x_train_b1,y_train_a, batch_size=BATCH_SIZE,epochs=100, shuffle=True,callbacks=[early_stopping],
+              validation_data=(x_val_b,y_val))
+    pred1 = model.predict(x_test_b,batch_size=BATCH_SIZE)
+    q1=y_test*86.72276+324.505973
+    q2=pred1*86.72276+324.505973
+    m1 = np.sum(np.abs((q1-q2)/q1),dtype=np.float64)
+    MAPE1 = m1*100/(test_samples*24)
+    
+    pred2 = model.predict(x_train_b1,batch_size=BATCH_SIZE)
+    q3=y_train_a*86.72276+324.505973
+    q4=pred2*86.72276+324.505973
+    m2 = np.sum(np.abs((q3-q4)/q3),dtype=np.float64)
+    MAPE2 = m2*100/(36000*24)
+
+    pred3 = model.predict(x_val_b,batch_size=BATCH_SIZE)
+    q5=y_val*86.72276+324.505973
+    q6=pred3*86.72276+324.505973
+    m3 = np.sum(np.abs((q5-q6)/q5),dtype=np.float64)
+    MAPE3=m3*100/(4000*24)
+    return MAPE1, MAPE2, MAPE3
+
+x1= 'C:/Users/ggc/Desktop/芙蓉镇训练集.xlsx'   
+x2= 'C:/Users/ggc/Desktop/芙蓉镇测试集.xlsx'  
+data11 = pd.read_excel(x1)
+data22 = pd.read_excel(x2)
+data1 = ((data11-data11.mean())/data11.std()).as_matrix()
+data2 = ((data22-data11.mean())/data11.std()).as_matrix()
+
+x_train_a = np.zeros((train_samples,TIME_STEPS,INPUT_SIZE))
+x_train_b = np.zeros((train_samples,1,days,timesteps))
+y_train = np.zeros((train_samples,OUTPUT_SIZE))
+
+x_test_a = np.zeros((test_samples,TIME_STEPS,INPUT_SIZE))
+x_test_b = np.zeros((test_samples,1,days,timesteps))
+y_test = np.zeros((test_samples,OUTPUT_SIZE))
+
+for i in range(train_samples):
+    x_train_a[i,:,0]=data1[168+i-TIME_STEPS:168+i,0]
+    for j in range(days):
+        x_train_b[i,0,j,:]=data1[i+24*j:i+24*j+timesteps,0]
+    y_train[i,:]=data1[24*days+i:24*days+i+OUTPUT_SIZE,0]
+
+for i in range(test_samples):
+    x_test_a[i,:,0]=data2[168+i-TIME_STEPS:168+i,0]
+    for j in range(days):
+        x_test_b[i,0,j,:]=data2[i+24*j:i+24*j+timesteps,0]
+    y_test[i,:]=data2[24*days+i:24*days+i+OUTPUT_SIZE,0]
+
+indices = np.arange(train_samples)
+np.random.shuffle(indices)
+x_train_a = x_train_a[indices]
+x_train_b = x_train_b[indices]
+y_train = y_train[indices]
+
+x_train_a1 = x_train_a[:nb_validation_samples]
+x_train_b1 = x_train_b[:nb_validation_samples]
+y_train_a = y_train[:nb_validation_samples]
+
+x_val_a = x_train_a[nb_validation_samples:]
+x_val_b = x_train_b[nb_validation_samples:]
+y_val = y_train[nb_validation_samples:]
+ 
+for i in range(1,20):
+    result1,result2,result3 = modelbuilt(i)
+    f = open('D:/测试/20171208_%d.txt'%(i), 'w')
+    f.writelines('resnet_number = '+str(i)+':    '
+                 +'test_MAPE = '+str(result1)+'\n'
+                 +'train_MAPE = '+str(result2)+'\n'
+                 +'validation_MAPE = '+str(result3)+'\n')
+    f.close()
+    writer = tf.summary.FileWriter('D://dogs',tf.get_default_graph())
+    writer.close()
