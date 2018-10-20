@@ -1,0 +1,48 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Dec 27 10:32:25 2017
+
+@author: ggc
+"""
+
+import numpy as np
+import statsmodels.api as sm # recommended import according to the docs
+import matplotlib.pyplot as plt
+import pandas as pd
+
+x1= 'C:/Users/ggc/Desktop/true1.xlsx'
+x2= 'C:/Users/ggc/Desktop/pred1.xlsx'
+data1 = pd.read_excel(x1)
+data2 = pd.read_excel(x2)
+data11 = np.array(data1)
+data22 = np.array(data2)
+
+q1 = data11.reshape(250*96)
+q2 = data22.reshape(250*96)
+
+errors = np.abs((q1-q2)/q1)
+A = sorted(errors)
+print(A[int(len(errors)*0.05)])
+print(A[int(len(errors)*0.95)])
+print(A[int(len(errors)*0.99)])
+errors.std()
+
+errors = errors.reshape(2500*96)
+ecdf = sm.distributions.ECDF(errors)
+x = np.linspace(0, 0.3)
+y = ecdf(x)
+plt.plot(x, y)
+plt.show()
+
+
+days=1384
+q1 = np.zeros((days,96))
+for i in range(days):
+    q1[i,:] = data1[i,:]
+q2 = np.zeros((days,96))
+for i in range(days):
+    q2[i,:] = data2[i,:]
+    
+m = np.sum(np.abs((q1-q2)/q1),dtype=np.float64)
+MAPE=m*100/(days*96)
+print('MAPE:',MAPE)
