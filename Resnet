@@ -138,8 +138,8 @@ def modelbuilt(k):
     MAPE3=m3*100/(4000*24)
     return MAPE1, MAPE2, MAPE3
 
-x1= 'C:/Users/ggc/Desktop/芙蓉镇训练集.xlsx'   
-x2= 'C:/Users/ggc/Desktop/芙蓉镇测试集.xlsx'  
+x1= 'C:/Users/ggc/Desktop/xxx.xlsx'   
+x2= 'C:/Users/ggc/Desktop/xxx.xlsx'  
 data11 = pd.read_excel(x1)
 data22 = pd.read_excel(x2)
 data1 = ((data11-data11.mean())/data11.std()).as_matrix()
