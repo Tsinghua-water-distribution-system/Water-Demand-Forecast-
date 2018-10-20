@@ -1,4 +1,3 @@
-# SMART-WATER
 
 We developed some models including mechine learning models and deep learning models to forecast the water demand. if you have any questions, please contact us : ggc16@mails.tsinghua.edu.cn. 
 We published the codes in order to learn and communicate for everyone.
