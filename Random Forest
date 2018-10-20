@@ -1,0 +1,70 @@
+from sklearn.metrics import make_scorer, mean_squared_error
+from sklearn.ensemble import RandomForestRegressor
+import numpy as np  
+import matplotlib.pyplot as plt
+import pandas as pd
+np.random.seed(1337)  
+from sklearn.model_selection import cross_val_score
+
+TIME_STEPS = 5
+train_samples=25000
+test_samples=2500
+VALIDATION_SPLIT = 0.9
+nb_validation_samples = int(VALIDATION_SPLIT * train_samples)
+# Loading the Digits dataset
+x1= 'C:/Users/ggc/Desktop/2_train.xls'
+t1= 'C:/Users/ggc/Desktop/3_test.xls'
+data11 = pd.read_excel(x1)
+data22 = pd.read_excel(t1)
+data1 = ((data11-data11.min())/(data11.max()-data11.min())).as_matrix()
+data2 = ((data22-data11.min())/(data11.max()-data11.min())).as_matrix()
+
+x_train = np.zeros((train_samples,15))
+y_train = np.zeros((train_samples,1))
+
+x_test = np.zeros((test_samples,15))
+y_test = np.zeros((test_samples,1))
+
+for i in range(train_samples):
+    x_train[i,0:5]=data1[194+i-TIME_STEPS:194+i,0]
+    x_train[i,5:10]=data1[i+96:i+101,0]
+    x_train[i,10:15]=data1[i:i+5,0]
+    y_train[i,0]=data1[194+i,0]
+
+indices = np.arange(train_samples)
+np.random.shuffle(indices)
+
+x_train = x_train[indices]
+y_train = y_train[indices]
+
+for i in range(test_samples):
+    x_test[i,0:5]=data2[194+i-TIME_STEPS:194+i,0]
+    x_test[i,5:10]=data2[i+96:i+101,0]
+    x_test[i,10:15]=data2[i:i+5,0]
+    y_test[i,0]=data2[194+i,0]
+
+clf = RandomForestRegressor(n_estimators=500, criterion='mse',max_features='sqrt',min_samples_split=0.005)
+#ftwo_scorer = make_scorer(mean_squared_error)
+#results = cross_val_score(clf, x_train, y_train, cv=10,scoring=ftwo_scorer)
+#print(results.mean())
+
+clf.fit(x_train,y_train)
+pred = clf.predict(x_test)
+
+q11 = pred*127+30
+q1 = y_test*127+30
+q2 = np.zeros((test_samples,1))
+q2[:,0]=q11
+m = np.sum(np.abs((q1-q2)/q1),dtype=np.float64)
+MAPE=m*100/test_samples
+print(MAPE)
+print(mean_squared_error(q1,q2))
+
+x_axis = np.arange(0,test_samples) 
+plt.plot(x_axis, q1,'r',label='true value') 
+plt.plot(x_axis, q2, 'b--',label='prediction ') 
+plt.ylabel('water demand (m^3)')
+plt.xlabel('times (15min/time)')
+plt.title('water demand prediction')
+plt.legend()
+plt.show()
