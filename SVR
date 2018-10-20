@@ -1,0 +1,105 @@
+from sklearn.svm import LinearSVR
+import numpy as np
+np.random.seed(1337)  
+import matplotlib.pyplot as plt
+import pandas as pd
+from sklearn.metrics import make_scorer, mean_squared_error
+from sklearn.grid_search import GridSearchCV
+from matplotlib.ticker import FuncFormatter
+
+TIME_STEPS = 5
+train_samples=25000
+test_samples=2500
+
+x1= 'C:/Users/ggc/Desktop/2_train.xls'
+t1= 'C:/Users/ggc/Desktop/3_test.xls'
+data11 = pd.read_excel(x1)
+data22 = pd.read_excel(t1)
+data1 = ((data11-data11.min())/(data11.max()-data11.min())).as_matrix()
+data2 = ((data22-data11.min())/(data11.max()-data11.min())).as_matrix()
+
+x_train = np.zeros((train_samples,15))
+y_train = np.zeros((train_samples,1))
+
+x_test = np.zeros((test_samples,15))
+y_test = np.zeros((test_samples,1))
+
+for i in range(train_samples):
+    x_train[i,0:5]=data1[194+i-TIME_STEPS:194+i,0]
+    x_train[i,5:10]=data1[i+96:i+101,0]
+    x_train[i,10:15]=data1[i:i+5,0]
+    y_train[i,0]=data1[194+i,0]
+
+indices = np.arange(train_samples)
+np.random.shuffle(indices)
+x_train = x_train[indices]
+y_train = y_train[indices]
+
+for i in range(test_samples):
+    x_test[i,0:5]=data2[194+i-TIME_STEPS:194+i,0]
+    x_test[i,5:10]=data2[i+96:i+101,0]
+    x_test[i,10:15]=data2[i:i+5,0]
+    y_test[i,0]=data2[194+i,0]
+#parameters = [{'C':[2**-9,2**-8,2**-7,2**-6,2**-5,2**-4,2**-3,2**-2,2**-1,1,2,4,8,16,32,64,128,2**8,2**9,2**10],
+ #             'loss':['epsilon_insensitive'],'max_iter':[1000],'epsilon':[0.]}] 
+  #[0.1,0.125,0.2,0.25,0.5], [0.001,0.005,0.01,0.05,0.1]
+  #np.linspace(0.1,0.2,10),
+#parameters = [{'C':np.linspace(0.1,0.2,10),'loss':['epsilon_insensitive'],'max_iter':[1000],'epsilon':[0.]}]
+#clf = GridSearchCV(LinearSVR(),parameters,cv=10,
+ #                  scoring=make_scorer(score_func=mean_squared_error,greater_is_better=False))
+clf = LinearSVR(C=0.17777777777777778, loss='epsilon_insensitive',max_iter=1000,epsilon=0)
+clf.fit(x_train, y_train)
+#print(clf.best_params_)
+pred = clf.predict(x_test)
+q11 = pred*127+30
+q1 = y_test*127+30
+q2 = np.zeros((test_samples,1))
+q2[:,0]=q11
+m = np.sum(np.abs((q1-q2)/q1),dtype=np.float64)
+MAPE=m*100/test_samples
+print(MAPE)
+print(mean_squared_error(q1,q2))
+
+data=(q1-q2)/q1
+fig, ax = plt.subplots()
+num_steps = 10
+max_percentage = 0.09
+num_bins = 80
+max_val = max_percentage * len(data)
+step_size = max_val / num_steps
+yticks = [ x * step_size for x in range(0, num_steps+1) ]
+ax.set_yticks( yticks )
+plt.ylim(0, max_val)
+n, bins, patches = plt.hist(data, num_bins)  
+to_percentage = lambda y, pos: str(round( ( y / float(len(data)) ) * 100.0, 2)) +'%'
+plt.gca().yaxis.set_major_formatter(FuncFormatter(to_percentage))
+plt.show()
+ax.set_ylabel('Frequency')
+ax.set_xlabel('Relative Error')
+ax.set_title('Relative Error SVR 15 min')
+
+fig2, ax2 = plt.subplots()
+x_axis = np.arange(0,test_samples) 
+ax2.plot(x_axis, q1,'r',label='true value') 
+ax2.plot(x_axis, q2, 'b--',label='prediction ') 
+ax2.set_ylabel('water demand (m^3)')
+ax2.set_xlabel('times (15min/time)')
+ax2.set_title('water demand prediction SVR 15 min')
+ax2.legend()
+
+a1 = np.abs(data)
+print(data.max())
+b1=0
+for i in range(test_samples):
+  if a1[i]<=0.05:
+    b1+=1
+print(b1)
+
+c1=0
+for i in range(test_samples):
+  if a1[i]>=0.15:
+    c1+=1
+print(c1)
+
+R = 1-np.sum((q1-q2)*(q1-q2))/np.sum((q1-q1.mean())*(q1-q1.mean()))
+print(R)
