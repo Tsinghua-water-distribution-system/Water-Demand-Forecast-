@@ -1,0 +1,48 @@
+import numpy as np
+np.random.seed(0)  # for reproducibility
+import matplotlib.pyplot as plt
+from keras.models import Sequential
+from keras.layers import Dense, Input, LSTM,RepeatVector
+from keras.optimizers import adam
+import pandas as pd
+from keras.utils.vis_utils import plot_model
+from keras.models import Model
+
+TIME_STEPS =10
+BATCH_SIZE = 20 
+INPUT_SIZE = 1 
+OUTPUT_SIZE = 1 
+train_samples=15000
+test_samples=100
+
+x1= 'C:/Users/ggc/Desktop/111.xls'
+t1= 'C:/Users/ggc/Desktop/222.xls'
+data1 = np.array(pd.read_excel(x1))
+data2 = np.array(pd.read_excel(t1))
+x_train = np.zeros((train_samples,TIME_STEPS))
+x_test= np.zeros((test_samples,TIME_STEPS))
+
+for i in range(train_samples):
+    x_train[i,:]=data1[i:i+TIME_STEPS,0]
+ 
+for j in range(test_samples):    
+    x_test[j,:]=data2[j:j+TIME_STEPS,0]  
+
+inputs = Input(shape=(10,))
+encoded = Dense(5, activation='relu')(inputs)
+encoded = Dense(2)(encoded)
+
+decoded = Dense(5,activation='relu')(encoded)
+decoded = Dense(10,activation='tanh')(decoded)
+
+encoder = Model(input=inputs, output=encoded)
+decoder = Model(input=encoded,)
+autoencoder = Model(inputs,decoded)
+
+autoencoder.compile(optimizer='adam', loss='mse') 
+
+autoencoder.fit(x_train, x_train, epochs=1, batch_size=BATCH_SIZE, shuffle=True,
+                validation_data=(x_test,x_test))
+
+encoded_imgs = encoder.predict(x_test)
+decoded_imgs = decoder.predict(encoded_imgs)
