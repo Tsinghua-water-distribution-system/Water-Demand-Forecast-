@@ -1,0 +1,131 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Nov 27 16:58:35 2017
+
+@author: ggc
+"""
+
+import numpy as np 
+import matplotlib.pyplot as plt
+import pandas as pd
+import os 
+from datetime import datetime
+#trainFile = "C:\\Users\\ggc\\Desktop\\123.csv"
+#pwd = os.getcwd()
+#os.chdir(os.path.dirname(trainFile))
+#Data = pd.read_csv(os.path.basename(trainFile), encoding='gbk')
+#Data.dtypes
+#a = Data['dTime'][0]
+#d = pd.DataFrame()
+#for i in range(len(Data['dTime'])):
+#    if Data['dTime'][i][-2:] =='00':
+#        dt = Data.iloc[i]
+#        d = d.append(dt)
+#d.to_csv('ggc.csv')
+
+#pwd = os.getcwd()
+##    os.chdir(os.path.dirname(trainFile))
+#dir_path = os.getcwd()+'\\xxx一csv'
+#os.chdir(dir_path)
+##    trainData = pd.read_csv(os.path.basename(trainFile))
+##    os.chdir(pwd)
+'''
+dir_path = "C:\\Users\\ggc\\Desktop\\xxx一\\"    
+file_list = os.listdir(dir_path)
+
+for i in range (len(file_list)):
+    f = open(dir_path+file_list[i])
+    data = pd.read_csv(f)
+#        datetime.strptime( , "%Y-%m-%d %H:%M:%S")
+    n = data.get_values().shape[0]
+    d = pd.DataFrame()
+    for k in range (n):
+        if data['dTime'][k][-2:]=='00':
+            dt = data.iloc[k]
+            d = d.append(dt)
+    d.to_csv(dir_path+file_list[i][0:-4]+'hour.csv')
+    f.close() 
+'''      
+dir_path = "C:\\Users\\ggc\\Desktop\\xx\\"    
+file_list = os.listdir(dir_path)
+save_path = 'C:\\Users\\ggc\\Desktop\\xx\\'
+for i in range (len(file_list)):
+    f = open(dir_path+file_list[i])
+    data = pd.read_csv(f)
+    
+    sm_t = []
+    sm_f = []
+    n = data.get_values().shape[0]
+    for j in range (int(0.1*n),int(0.1*n)+240):
+        tm = datetime.strptime(data.ix[j][0],  "%Y/%m/%d %H:%M")
+        fm = data.ix[j][1]
+        sm_t.append(tm)
+        sm_f.append(fm)
+    plt.figure()
+    plt.grid()
+    plt.plot(sm_t, sm_f,'-', color="r",label='water demand')
+    plt.ylabel('water demand')
+    plt.xlabel('Time')
+    plt.legend()
+    plt.savefig(save_path+file_list[i]+'_1.png')
+    
+    sm_t = []
+    sm_f = []    
+    for j in range (int(0.3*n),int(0.3*n)+240):
+        tm = datetime.strptime(data.ix[j][0],  "%Y/%m/%d %H:%M")
+        fm = data.ix[j][1]
+        sm_t.append(tm)
+        sm_f.append(fm)
+    plt.figure()
+    plt.grid()
+    plt.plot(sm_t, sm_f,'-', color="r",label='water demand')
+    plt.ylabel('water demand')
+    plt.xlabel('Time')
+    plt.legend()
+    plt.savefig(save_path+file_list[i]+'_2.png')
+    
+    sm_t = []
+    sm_f = []
+    for j in range (int(0.5*n),int(0.5*n)+240):
+        tm = datetime.strptime(data.ix[j][0],  "%Y/%m/%d %H:%M")
+        fm = data.ix[j][1]
+        sm_t.append(tm)
+        sm_f.append(fm)
+    plt.figure()
+    plt.grid()
+    plt.plot(sm_t, sm_f,'-', color="r",label='water demand')
+    plt.ylabel('water demand')
+    plt.xlabel('Time')
+    plt.legend()
+    plt.savefig(save_path+file_list[i]+'_3.png')
+
+    sm_t = []
+    sm_f = []
+    for j in range (int(0.7*n),int(0.7*n)+240):
+        tm = datetime.strptime(data.ix[j][0],  "%Y/%m/%d %H:%M")
+        fm = data.ix[j][1]
+        sm_t.append(tm)
+        sm_f.append(fm)
+    plt.figure()
+    plt.grid()
+    plt.plot(sm_t, sm_f,'-', color="r",label='water demand')
+    plt.ylabel('water demand')
+    plt.xlabel('Time')
+    plt.legend()
+    plt.savefig(save_path+file_list[i]+'_4.png')
+
+    sm_t = []
+    sm_f = []
+    for j in range (int(0.9*n),int(0.9*n)+240):
+        tm = datetime.strptime(data.ix[j][0],  "%Y/%m/%d %H:%M")
+        fm = data.ix[j][1]
+        sm_t.append(tm)
+        sm_f.append(fm)
+    plt.figure()
+    plt.grid()
+    plt.plot(sm_t, sm_f,'-', color="r",label='water demand')
+    plt.ylabel('water demand')
+    plt.xlabel('Time')
+    plt.legend()
+    plt.savefig(save_path+file_list[i]+'_5.png')
+    f.close() 
