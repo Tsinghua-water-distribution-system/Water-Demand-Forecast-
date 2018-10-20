@@ -1,0 +1,158 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Nov 16 00:28:17 2017
+
+@author: ggc
+"""
+import os
+os.environ['KERAS_BACKEND'] = 'tensorflow'
+import numpy as np
+import tensorflow as tf
+import random as rn
+os.environ['PYTHONHASHSEED'] = '0'
+np.random.seed(42)
+rn.seed(12345)
+session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
+from keras import backend as K
+sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
+K.set_session(sess)
+
+import matplotlib.pyplot as plt
+from keras.models import Sequential
+from keras.layers import Merge, LSTM, Dense,Bidirectional
+from keras.optimizers import Adam
+import pandas as pd
+from sklearn.metrics import  mean_squared_error
+import keras.callbacks 
+from matplotlib.ticker import FuncFormatter
+from keras.callbacks import EarlyStopping
+
+TIME_STEPS = 5
+BATCH_SIZE = 60
+INPUT_SIZE = 1 
+OUTPUT_SIZE = 1 
+LR = 0.001
+train_samples=25000
+test_samples=2500
+VALIDATION_SPLIT = 0.9
+nb_validation_samples = int(VALIDATION_SPLIT * train_samples)
+
+x1= 'C:/Users/ggc/Desktop/2_train.xls'
+t1= 'C:/Users/ggc/Desktop/3_test.xls'
+data11 = pd.read_excel(x1)
+data22 = pd.read_excel(t1)
+data1 = ((data11-data11.min())/(data11.max()-data11.min())).as_matrix()
+data2 = ((data22-data11.min())/(data11.max()-data11.min())).as_matrix()
+
+x_train_a = np.zeros((train_samples,TIME_STEPS,INPUT_SIZE))
+x_train_b = np.zeros((train_samples,5,1))
+x_train_c = np.zeros((train_samples,5,1))
+y_train = np.zeros((train_samples,1))
+x_test_a = np.zeros((test_samples,TIME_STEPS,INPUT_SIZE))
+x_test_b = np.zeros((test_samples,5,1))
+x_test_c = np.zeros((test_samples,5,1))
+y_test = np.zeros((test_samples,1))
+
+for i in range(train_samples):
+    x_train_a[i,:,0]=data1[194+i-TIME_STEPS:194+i,0]
+    x_train_b[i,:,0]=data1[i+96:i+101,0]
+    x_train_c[i,:,0]=data1[i:i+5,0]
+    y_train[i,0]=data1[194+i,0]
+
+indices = np.arange(train_samples)
+np.random.shuffle(indices)
+x_train_a=x_train_a[indices]
+x_train_b=x_train_b[indices]
+x_train_c=x_train_c[indices]
+y_train = y_train[indices]
+
+x_train_a1 = x_train_a[:nb_validation_samples]
+x_train_b1 = x_train_b[:nb_validation_samples]
+x_train_c1 = x_train_c[:nb_validation_samples]
+y_train_a = y_train[:nb_validation_samples]
+
+x_val_a = x_train_a[nb_validation_samples:]
+x_val_b = x_train_b[nb_validation_samples:]
+x_val_c = x_train_c[nb_validation_samples:]
+y_val = y_train[nb_validation_samples:]
+
+for j in range(test_samples):    
+    x_test_a[j,:,0]=data2[194+j-TIME_STEPS:194+j,0]
+    x_test_b[j,:,0]=data2[j+96:j+101,0]
+    x_test_c[j,:,0]=data2[j:j+5,0]
+    y_test[j,0]=data2[194+j,0] 
+
+model1 = Sequential()
+model1.add(Bidirectional(LSTM(48, init='glorot_uniform', inner_init='orthogonal', forget_bias_init='one',activation='tanh',
+                              inner_activation='hard_sigmoid'),input_shape=(TIME_STEPS,INPUT_SIZE),merge_mode='ave'))
+
+model2 = Sequential()
+model2.add(Bidirectional(LSTM(32, init='glorot_uniform', inner_init='orthogonal', forget_bias_init='one',activation='tanh',
+                              inner_activation='hard_sigmoid'),input_shape=(TIME_STEPS,INPUT_SIZE),merge_mode='ave'))
+
+model3 = Sequential()
+model3.add(Bidirectional(LSTM(32, init='glorot_uniform', inner_init='orthogonal', forget_bias_init='one',activation='tanh',
+                              inner_activation='hard_sigmoid'),input_shape=(TIME_STEPS,INPUT_SIZE),merge_mode='ave'))
+
+model = Sequential()
+model.add(Merge([model1,model2,model3],mode='concat'))
+model.add(Dense(64,activation='relu'))
+model.add(Dense(1,activation='linear'))
+
+adam = Adam(LR)
+model.compile(optimizer=adam,loss='mse') 
+
+class LossHistory(keras.callbacks.Callback):
+  def on_train_begin(self, logs={}):
+    self.losses = []
+  def on_batch_end(self, batch, logs={}):
+    self.losses.append(logs.get('loss'))
+    
+print('Training ------------')
+history1 = LossHistory()
+early_stopping = EarlyStopping(monitor='val_loss', patience=3)
+l1=model.fit([x_train_a1,x_train_b1,x_train_c1],y_train_a,
+            batch_size=BATCH_SIZE,epochs=100, shuffle=True,callbacks=[history1,early_stopping],
+            validation_data=([x_val_a,x_val_b,x_val_c],y_val))
+pred = model.predict([x_test_a,x_test_b,x_test_c],batch_size=BATCH_SIZE)
+
+q1=y_test*127+30
+q2=pred*127+30
+m = np.sum(np.abs((q1-q2)/q1),dtype=np.float64)
+MAPE=m*100/(test_samples)
+print('mse:',mean_squared_error(q1,q2))
+print('MAPE:',MAPE)
+MAE = np.sum(np.abs(q1-q2),dtype=np.float64)/(test_samples)
+print('MAE:',MAE)
+R = 1-np.sum((q1-q2)*(q1-q2))/np.sum((q1-q1.mean())*(q1-q1.mean()))
+print('NSE:',R) 
+
+data=(q1-q2)/q1
+fig, ax = plt.subplots()
+num_steps = 10
+max_percentage = 0.065
+num_bins = 100
+max_val = max_percentage * len(data)
+step_size = max_val / num_steps
+yticks = [ x * step_size for x in range(0, num_steps+1) ]
+ax.set_yticks( yticks )
+plt.ylim(0, max_val)
+n, bins, patches = plt.hist(data, num_bins)  
+to_percentage = lambda y, pos: str(round( ( y / float(len(data)) ) * 100.0, 2))
+plt.gca().yaxis.set_major_formatter(FuncFormatter(to_percentage))
+plt.xticks(fontsize=15)
+plt.yticks(fontsize=15)
+plt.show() 
+
+a1 = np.array(l1.history['loss'])
+a1 = a1*16129
+b1 = np.array(l1.history['val_loss'])
+b1 = b1*16129
+fig1, ax1 = plt.subplots()
+ax1.grid()
+ax1.plot(a1,'-', color="r",label='Training loss')
+ax1.plot(b1,'--', color="g",label='Validation loss')
+ax1.set_ylabel('MSE')
+ax1.set_xlabel('Epochs')
+ax1.set_title('LOSS Curve GRUN 15 min')
+ax1.legend()
